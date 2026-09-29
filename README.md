@@ -1,18 +1,20 @@
-# 🚀 Ansible Automate Nexus Deployment
+# 🚀 Ansible Integration in Terraform Provision EC2 and Configure Docker
 
+![Terraform](https://img.shields.io/badge/Terraform-844FBA?style=for-the-badge&logo=terraform&logoColor=white)
 ![Ansible](https://img.shields.io/badge/Ansible-EE0000?style=for-the-badge&logo=ansible&logoColor=white)
-![Nexus](https://img.shields.io/badge/Nexus%20Repository-1B1C30?style=for-the-badge&logo=sonatype&logoColor=white)
-![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![DigitalOcean](https://img.shields.io/badge/DigitalOcean-0080FF?style=for-the-badge&logo=digitalocean&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-232F3E?style=for-the-badge&logo=amazon-aws&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
 
-**Sonatype Nexus Repository** is a repository manager that organizes, stores, and distributes build artifacts (such as Maven, npm, Docker, PyPI and other package formats) from a single, central location, allowing development teams to control the storage, sharing and management of software components across the entire development lifecycle. It is commonly deployed as the internal artifact store that CI/CD pipelines publish to and resolve dependencies from, acting as a caching proxy for public repositories and a private registry for internally built packages.
+**Terraform** is an infrastructure as code (IaC) tool that lets you build, change, and version infrastructure safely and efficiently. It works with resources from cloud providers as well as on-prem services, describing infrastructure using a high-level configuration language called **HCL (HashiCorp Configuration Language)**. Terraform generates an execution plan describing what it will do to reach the desired state, and then executes it to build the described infrastructure, keeping track of the real-world resources it manages in a **state file**.
 
 **Ansible Automation** is an open-source, agentless IT automation engine that automates provisioning, configuration management, application deployment, and orchestration across large fleets of servers. It describes the *desired state* of a system using simple, human-readable YAML files called **playbooks**, and pushes those changes to managed nodes over standard **SSH** — without requiring any agent, daemon, or extra software installed on the target machines. Because every module is designed to be **idempotent**, running the same automation twice produces the same end state without unintended side effects, which makes Ansible a safe, repeatable and auditable way to manage infrastructure at scale.
 
 ## 📖 Overview
 
-This project demonstrates how to use **Ansible** to fully automate the installation and deployment of **Sonatype Nexus Repository Manager** onto a freshly provisioned **DigitalOcean** droplet running **Linux (Ubuntu)**. Instead of manually SSH-ing into the server and typing out each installation step by hand, the entire workflow — installing **Java** and system dependencies, downloading and unpacking the Nexus installer, creating a dedicated non-root Linux user to own and run the service, configuring Nexus to start as that user, and verifying that the process is actually up and listening — is codified into a single, reusable and idempotent Ansible playbook ([deploy-nexus.yaml](deploy-nexus.yaml)).
+This project demonstrates how to combine **Terraform** and **Ansible** into a single, hands-off provisioning pipeline. Terraform is responsible for the underlying **AWS** infrastructure — a VPC, subnet, internet gateway, route table, security group and an **EC2** instance — while **Ansible** is responsible for everything that happens *inside* that server once it exists: installing **Docker** and **Docker Compose**, creating a dedicated non-root Linux user, shipping a multi-container application stack, authenticating against a private Docker registry, and starting the containers.
+
+The key part of this project is the **integration** between the two tools: instead of manually copying the EC2 instance's IP address into an Ansible inventory file after every `terraform apply`, Terraform's `null_resource` and `local-exec` **provisioner** invokes `ansible-playbook` automatically the moment the instance's public IP becomes available — turning "provision infrastructure" and "configure the application" into a single command.
 
 ### ✨ Ansible Automation key features
 
@@ -20,75 +22,108 @@ This project demonstrates how to use **Ansible** to fully automate the installat
 - 📝 **Human-readable YAML playbooks** — automation logic is expressed as simple, declarative YAML instead of custom scripting
 - 🔁 **Idempotency** — tasks can be run repeatedly and will only change the system when it drifts from the desired state
 - 🧩 **Modular building blocks** — reusable **Modules**, **Roles** and **Collections** let automation be composed, shared and version-controlled
-- ⚡ **Ad-hoc command execution** — one-off tasks (e.g. `ping`, `shell`, `apt`) can be run instantly across a fleet without writing a full playbook
-- 🗂️ **Flexible inventory management** — hosts can be grouped by region, role or environment, with variables applied per host or per group (`group_vars`)
-- 🔌 **Extensibility** — custom modules and plugins can extend Ansible's behaviour to fit any infrastructure need
+- ⚡ **Ad-hoc command execution** — one-off tasks (e.g. `ping`, `shell`, `yum`) can be run instantly across a fleet without writing a full playbook
+- 🗂️ **Flexible inventory management** — hosts can be grouped by region, role or environment, and inventories can even be generated **dynamically**, as demonstrated by this project's Terraform-driven inventory
+- 🔌 **Extensibility** — custom modules and plugins (e.g. `community.docker.docker_compose_v2`) can extend Ansible's behaviour to fit any infrastructure need
 - 🏪 **Ansible Galaxy** — a public registry for discovering and sharing community-built roles and collections
-- 🔒 **Secure secrets handling** — sensitive data (passwords, keys, tokens) can be encrypted at rest using **Ansible Vault**
-- 🎯 **Conditionals & facts gathering** — tasks such as downloading and renaming the Nexus installer only run `when` a pre-condition is met (e.g. the install folder doesn't already exist), making re-runs safe and non-destructive, exactly as demonstrated in this project
+- 🔒 **Secure secrets handling** — sensitive data (passwords, keys, tokens) can be externalized into `vars_files` and encrypted at rest using **Ansible Vault**
+- 🎯 **Infrastructure-as-code integration** — provisioners like Terraform's `local-exec` let Ansible playbooks run automatically right after infrastructure is created, chaining IaC and configuration management into one seamless workflow, exactly as demonstrated in this project
 
 ## Demo Project
 
-Ansible Automate Nexus Deployment
+Ansible Integration in Terraform Provision EC2 and Configure Docker
 
 ## Technologies used
 
 - Ansible
-- Nexus
-- Java
-- DigitalOcean
+- Terraform
+- AWS
+- Docker
 - Linux
 
 ## Project Description
 
-- Create Server on DigitalOcean
-- Write Ansible Playbook that creates Linux user for Nexus, configure server, installs and deploys Nexus and verifies that it is running successfully
+- Create AWS EC2 Instance with Terraform
+- Write Ansible Playbook that installs necessary technologies like Docker and Docker Compose, copies docker-compose file to the server and starts the Docker containers configured inside the docker-compose file
+- Create Ansible Playbook for Terraform integration
+- Adjust Terraform configuration to execute Ansible Playbook automatically, so once Terraform provisions a server, it executes an Ansible playbook that configures the server
 
 ## 📁 Repository structure
 
 ```text
-ansible-automate-nexus-deployment/
-├── ansible.cfg                # Ansible configuration (default inventory, SSH behaviour)
-├── hosts                      # Inventory file - lists the target DigitalOcean droplet as [nexus_server]
-├── deploy-nexus.yaml          # Main playbook - installs Java, downloads & starts Nexus, verifies it's running
-├── project-vars                # Local, git-ignored vars file consumed by the playbook (nexus_download_url, etc.)
-├── example-project-vars        # Template committed to the repo - copy to `project-vars` before running
-├── nexus.sh                    # Manual shell reference for the steps the playbook automates
-├── NOTES.md                    # Personal study notes covering the full Ansible learning path
-├── README.md                   # This file 📄
-└── images/                     # Screenshots captured while running the demo
-    ├── nexus-playbook-terminal.png
-    └── nexus-playbook-verify-terminal.png
+ansible-integration-in-terraform-provision-ec2-and-configure-docker/
+├── NOTES.md                        # Personal study notes covering the full Ansible learning path
+├── README.md                       # This file 📄
+├── .gitignore                      # Excludes tfstate, .terraform/, *.tfvars & project-vars from git
+├── images/                         # Screenshots captured while running the demo
+│   ├── terraform-apply-terminal.png
+│   └── ec2-server-docker-running-terminal.png
+├── terraform/                      # Infrastructure as Code - provisions the AWS EC2 instance
+│   ├── providers.tf                  # AWS provider & required Terraform version
+│   ├── main.tf                       # VPC, subnet, security group, EC2 instance & Ansible provisioner
+│   ├── entry-script.sh                # Reference: manual bash equivalent of the Docker install steps
+│   ├── example.tfvars                 # Template committed to the repo - copy to terraform.tfvars
+│   └── terraform.tfvars               # Local, git-ignored real values (region, CIDR, IP, key paths)
+├── ansible/                         # Configuration Management - configures the EC2 instance
+│   ├── ansible.cfg                    # Ansible configuration (default inventory, SSH behaviour)
+│   ├── hosts                           # Static inventory file (used for manual/ad-hoc runs)
+│   ├── deploy-docker-new-user.yaml     # Main playbook - installs Docker/Compose & deploys the stack
+│   ├── project-vars                     # Local, git-ignored vars file (docker_password)
+│   └── example-project-vars             # Template committed to the repo - copy to `project-vars`
+└── bootcamp-java-mysql-project/     # The application stack that gets deployed to the EC2 instance
+    ├── docker-compose-full.yaml       # 3-tier stack: Java app + MySQL + phpMyAdmin (used by Ansible)
+    ├── docker-compose.yaml            # Local dev compose file (MySQL + phpMyAdmin only)
+    ├── Dockerfile                      # Builds the Java application image
+    └── src/                             # Java application source code
 ```
 
 ## 🏗️ Architecture overview
 
 ```mermaid
-flowchart LR
-    A["💻 Control Node<br/>(Local Machine + Ansible CLI)"] -- "SSH (port 22)<br/>ansible-playbook -i hosts deploy-nexus.yaml" --> SG
+flowchart TB
+    Dev["💻 Developer<br/>terraform apply -var-file=terraform.tfvars"] --> TF["Terraform Core"]
 
-    subgraph SG["☁️ DigitalOcean Droplet — Ubuntu (64.227.181.206)"]
+    subgraph AWS["☁️ AWS"]
         direction TB
-        C["Play 1<br/>Install Java 17 & net-tools"] --> D["Play 2<br/>Download & unpack Nexus<br/>to /opt/nexus"]
-        D --> E["Play 3<br/>Create nexus user & group<br/>chown /opt/nexus & sonatype-work"]
-        E --> F["Play 4<br/>become nexus → set run_as_user<br/>start /opt/nexus/bin/nexus"]
-        F --> G["Play 5<br/>Verify with ps aux & netstat"]
+        VPC["VPC + Subnet + Internet Gateway<br/>+ Default Route Table"] --> SG["Security Group<br/>22/tcp ← my_ip, 8080/tcp ← 0.0.0.0/0"]
+        SG --> EC2["EC2 Instance<br/>Amazon Linux 2023 (t2.micro)"]
     end
 
-    SG -- "Port 8081" --> H["🌐 Browser / curl<br/>http://64.227.181.206:8081"]
+    TF -- "creates" --> AWS
+    EC2 -- "public_ip" --> NR["null_resource.configure_server<br/>(local-exec provisioner)"]
+
+    NR -- "ansible-playbook --inventory <public_ip>,<br/>--private-key ... deploy-docker-new-user.yaml" --> P1
+
+    subgraph Playbook["🎭 Ansible Playbook (runs against the new EC2 instance)"]
+        direction TB
+        P1["Play 1<br/>Wait for SSH port 22"] --> P2["Play 2<br/>Install & start Docker"]
+        P2 --> P3["Play 3<br/>Create appuser<br/>(groups: adm, docker)"]
+        P3 --> P4["Play 4<br/>become appuser → install<br/>Docker Compose CLI plugin"]
+        P4 --> P5["Play 5<br/>Copy docker-compose-full.yaml<br/>docker login → docker compose up"]
+    end
+
+    P5 -- "Ports 8080 / 3306 / 8083" --> Browser["🌐 Browser / curl"]
 ```
 
-- The **control node** is the local machine where Ansible is installed and the playbook is executed from
-- The **managed node** is the DigitalOcean droplet, targeted through the `nexus_server` group defined in the [hosts](hosts) inventory file
-- Ansible connects over **SSH using a key pair**, requiring **no agent** installed on the droplet
-- The playbook is organized into **five sequential plays**, each targeting the `nexus_server` group but responsible for a distinct part of the desired end-state: dependency installation → download/unpack → user provisioning → service startup → verification
-- Once deployed, Nexus Repository listens on its default port **8081** and can be reached directly from a browser
+- **Terraform** is the control node for infrastructure: it defines the VPC, subnet, internet gateway, route table, security group and the EC2 instance itself, using the AWS provider
+- The **security group** only opens SSH (port 22) to the developer's own IP (`var.my_ip`) while opening the application port (8080) to the world — a sensible default for a demo, and easily tightened further for production
+- Once the EC2 instance's public IP is known, Terraform's `null_resource` + `local-exec` **provisioner** hands off control to **Ansible**, passing the IP as a one-off, dynamically generated inventory entry (`--inventory <ip>,`)
+- **Ansible** then runs five sequential plays against that single host: waiting for SSH to be ready, installing Docker, creating a dedicated non-root user, installing Docker Compose, and finally deploying the application stack
+- The deployed stack — a Java app, MySQL and phpMyAdmin — is reachable on ports **8080**, **3306** and **8083** respectively
 
 ## 🧭 Implementation Guide
 
 ### 1. Prerequisites
 
 Before running this automation, make sure you have the following in place:
+
+- ✅ **Terraform installed** on your local/control machine, see [Terraform's install guide](https://developer.hashicorp.com/terraform/install)
+
+  ```bash
+  # macOS
+  brew tap hashicorp/tap
+  brew install hashicorp/tap/terraform
+  ```
 
 - ✅ **Ansible installed** on your local/control machine
 
@@ -100,293 +135,336 @@ Before running this automation, make sure you have the following in place:
   pip install ansible
   ```
 
-- ✅ A **DigitalOcean account** with a droplet created (Ubuntu image), see [DigitalOcean's Droplet quickstart](https://docs.digitalocean.com/products/droplets/getting-started/quickstart/)
-- ✅ An **SSH key pair** generated locally and added to the droplet at creation time, so Ansible can authenticate without a password
+- ✅ An **AWS account** with credentials configured locally (e.g. via `aws configure` or environment variables), since the Terraform AWS provider authenticates using the standard AWS credential chain, see [Terraform AWS Provider docs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
+- ✅ An **SSH key pair** generated locally, whose public key path is referenced in [terraform.tfvars](terraform/terraform.tfvars) and gets attached to the EC2 instance via `aws_key_pair`
 
   ```bash
   ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
   ```
 
-- ✅ Enough droplet memory/CPU for Nexus — Sonatype's official guidance recommends at least **2 vCPUs and 4-8 GB of RAM** for a Nexus Repository instance, see [Sonatype's System Requirements](https://help.sonatype.com/en/system-requirements.html)
-- ✅ A copy of the vars template in place before running the playbook, since `project-vars` is intentionally excluded from version control via [.gitignore](.gitignore):
+- ✅ A **Docker Hub** (or other private registry) account, since the deployment playbook authenticates with `docker_login` before pulling the application image
+- ✅ Local copies of the two git-ignored variable files, created from the templates committed to the repo:
 
   ```bash
+  cd terraform
+  cp example.tfvars terraform.tfvars
+  # then edit terraform.tfvars with your own region, CIDR blocks, IP and key paths
+
+  cd ../ansible
   cp example-project-vars project-vars
+  # then edit project-vars with your own docker_password
   ```
 
-### 2. Provision the DigitalOcean Droplet
+### 2. Provision the AWS network & EC2 instance with Terraform
 
-- A single Ubuntu droplet was created from the DigitalOcean control panel, with the local SSH public key (`~/.ssh/id_ed25519.pub`) attached during creation so that key-based authentication is available immediately
-- Once created, DigitalOcean assigns a public IPv4 address to the droplet (`64.227.181.206` in this demo) which becomes the target host for every Ansible command below
+The core of the infrastructure lives in [terraform/main.tf](terraform/main.tf). It declares, in order:
 
-### 3. Configure the Ansible Inventory & SSH connectivity
+- A **VPC** (`aws_vpc`) with DNS hostnames enabled
+- A **subnet** (`aws_subnet`) inside that VPC, pinned to a specific availability zone
+- An **internet gateway** (`aws_internet_gateway`) and a **default route table** (`aws_default_route_table`) routing `0.0.0.0/0` traffic through it, giving the subnet internet access
+- A **default security group** (`aws_default_security_group`) allowing inbound SSH (22) only from the operator's own IP, inbound 8080 from anywhere, and unrestricted egress
+- A **data source** (`data "aws_ami"`) that dynamically resolves the latest **Amazon Linux 2023** AMI, avoiding a hardcoded, region-specific AMI ID
+- An **`aws_key_pair`** resource that uploads the local public key so Ansible/SSH can authenticate
+- The **`aws_instance`** itself (`myapp-server`), attached to the subnet, security group and key pair
 
-The [hosts](hosts) file tells Ansible which server(s) to manage, groups it under `nexus_server` (matching the `hosts:` value used in every play of the playbook) and how to authenticate against it:
+```hcl
+provider "aws" {
+  region = "eu-central-1"
+}
+
+resource "aws_instance" "myapp-server" {
+  ami = data.aws_ami.latest-amazon-linux-image.id
+  instance_type = var.instance_type
+
+  subnet_id = aws_subnet.myapp-subnet-1.id
+  vpc_security_group_ids = [aws_default_security_group.default-sg.id]
+  availability_zone = var.avail_zone
+
+  associate_public_ip_address = true
+  key_name = aws_key_pair.ssh-key.key_name
+
+  tags = {
+    Name: "${var.env_prefix}-server"
+  }
+}
+```
+
+The provider version is pinned in [terraform/providers.tf](terraform/providers.tf) to keep the build reproducible:
+
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "5.20.1"
+    }
+  }
+}
+```
+
+Environment-specific values (region details, CIDR blocks, the operator's IP, key file paths) are kept out of version control and supplied through a `.tfvars` file, following [Terraform's recommended variable-definition pattern](https://developer.hashicorp.com/terraform/language/values/variables#variable-definitions-tfvars-files):
 
 ```ini
-[nexus_server]
-64.227.181.206 ansible_ssh_private_key_file=~/.ssh/id_ed25519 ansible_user=root
+# Update these values to match your AWS setup and workstation IP
+vpc_cidr_block     = "10.0.0.0/16"
+subnet_cidr_block  = "10.0.10.0/24"
+avail_zone         = "us-east-1a"
+env_prefix         = "dev"
+my_ip              = "YOUR_IP/32"
+instance_type      = "t2.micro"
+public_key_location = "PATH_TO_PUB_KEY"
+private_key_location = "PATH_TO_PRIV_KEY"
 ```
 
-The [ansible.cfg](ansible.cfg) file sets sane defaults for this project, so the inventory file doesn't need to be passed with `-i` on every command, and SSH host-key prompts are skipped for this ephemeral, single-use droplet:
+> 💡 [terraform/entry-script.sh](terraform/entry-script.sh) documents the manual, bash equivalent of installing Docker on the instance (`yum install docker`, `systemctl start docker`, `usermod -aG docker`). It was the starting reference point before the exact same steps were re-implemented as idempotent Ansible tasks in the next section — it is no longer wired into Terraform as `user_data` since Ansible now owns that responsibility.
 
-```ini
-[defaults]
-host_key_checking = False
-inventory = hosts
-```
-
-> ⚠️ Disabling `host_key_checking` is convenient for short-lived demo/lab infrastructure, but for production hosts it's best practice to keep host key verification enabled (or pre-seed `~/.ssh/known_hosts` with `ssh-keyscan`) to guard against man-in-the-middle attacks.
-
-### 4. Verify connectivity with an Ansible ad-hoc command
-
-Before writing or running any playbook, connectivity and authentication were validated with the built-in `ping` module:
+Initialize and apply the Terraform configuration:
 
 ```bash
-ansible all -i hosts -m ping
+cd terraform
+terraform init
+terraform plan -var-file=terraform.tfvars
+terraform apply -var-file=terraform.tfvars
 ```
 
-A successful response confirms Ansible can reach the droplet over SSH and that the Python interpreter required by Ansible modules is available on the remote host.
+### 3. Write the Ansible Playbook that configures Docker
 
-### 5. Understand the manual installation process first
+Before wiring anything into Terraform, the configuration logic was built and tested as a standalone playbook: [ansible/deploy-docker-new-user.yaml](ansible/deploy-docker-new-user.yaml), organized into **five plays**.
 
-Before automating anything, the manual installation steps were captured in [nexus.sh](nexus.sh) — this is the exact sequence of commands a human operator would type by hand on the server, and it's the baseline that the Ansible playbook needed to reproduce automatically:
-
-```bash
-apt-get update
-apt install openjdk-8-jre-headless
-apt install net-tools
-
-cd /opt
-wget https://download.sonatype.com/nexus/3/latest-linux-x86_64.tar.gz
-tar -zxvf latest-linux-x86_64.tar.gz
-
-adduser nexus
-chown -R nexus:nexus nexus-3.65.0-02
-chown -R nexus:nexus sonatype-work
-
-vim nexus-3.65.0-02/bin/nexus.rc
-run_as_user="nexus"
-
-su - nexus
-/opt/nexus-3.65.0-02/bin/nexus start
-
-ps aux | grep nexus
-netstat -lnpt
-```
-
-Turning this manual checklist into a playbook removes hardcoded version numbers, makes the process idempotent, and lets the exact same automation be re-run against any new droplet in minutes.
-
-### 6. Externalize configuration with an Ansible vars file
-
-Rather than hardcoding the Nexus download URL inside the playbook, the value is externalized into a `vars_files` entry. Since `project-vars` is git-ignored (it can hold environment-specific/sensitive values), [example-project-vars](example-project-vars) is committed as a template to be copied locally:
+**Play 1 — Wait for SSH to be ready**
 
 ```yaml
-version: 1.0.0
-location: /path/to/project/files
-linux_name: appuser
-user_home_dir: /home/{{linux_name}}
-nexus_download_url: https://download.sonatype.com/nexus/3/latest-linux-x86_64.tar.gz
-```
-
-### 7. Write the Ansible Playbook
-
-The core of this project is [deploy-nexus.yaml](deploy-nexus.yaml), organized into **five plays** that run in order against the `nexus_server` group:
-
-**Play 1 — Install Java & net-tools**
-
-```yaml
-- name: Install java and net-tools
-  hosts: nexus_server
+- name: Wait for SSH connection
+  hosts: all
+  gather_facts: False
   tasks:
-    - name: Update apt repo and cache
-      apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
-    - name: Install Java 17
-      apt: name=openjdk-17-jre-headless
-    - name: Install net-tools
-      apt: name=net-tools
+    - name: Ensure SSH port open
+      wait_for:
+        port: 22
+        delay: 10
+        timeout: 100
+        search_regex: OpenSSH
+        host: '{{ (ansible_ssh_host|default(ansible_host))|default(inventory_hostname) }}'
+      vars:
+        ansible_connection: local
+        ansible_python_interpreter: /usr/bin/python3
 ```
 
-Nexus is a Java application, so the **Java Runtime Environment (JRE)** is a hard prerequisite; `net-tools` provides `netstat`, used later to confirm the service is listening on its port.
+Because the EC2 instance may still be booting when the playbook first tries to connect, `wait_for` polls the target's SSH port **locally** (`ansible_connection: local`) until OpenSSH responds, avoiding a race condition between "instance created" and "instance actually reachable".
 
-**Play 2 — Download and unpack the Nexus installer**
+**Play 2 — Install Docker**
 
 ```yaml
-- name: Download and unpack Nexus installer
-  hosts: nexus_server
+- name: Install Docker
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install Docker
+      yum:
+        name: docker
+        update_cache: yes
+        state: present
+    - name: Start docker daemon
+      systemd:
+        name: docker
+        state: started
+```
+
+Amazon Linux uses the **`yum`** package manager (rather than `apt`), and the Docker daemon is started and enabled via the `systemd` module.
+
+**Play 3 — Create a dedicated Linux user**
+
+```yaml
+- name: Create new linux user
+  hosts: all
+  become: yes
+  tasks: 
+    - name: Create new linux user
+      user:
+        name: appuser
+        groups: adm,docker
+```
+
+Running the application stack under its own user (`appuser`) rather than `ec2-user`/`root` follows the **principle of least privilege**; adding it to the `docker` group lets it run Docker commands without needing `sudo` for every container operation.
+
+**Play 4 — Install Docker Compose as a CLI plugin**
+
+```yaml
+- name: Install Docker-compose
+  hosts: all
+  become: yes
+  become_user: appuser
+  tasks:
+    - name: Create docker-compose directory
+      file:
+        path: ~/.docker/cli-plugins
+        state: directory
+    - name: Get architecture of remote machine
+      shell: uname -m
+      register: remote_arch
+    - name: Install docker-compose
+      get_url:
+        url: "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-{{ remote_arch.stdout }}"
+        dest: ~/.docker/cli-plugins/docker-compose
+        mode: +x
+```
+
+Docker Compose is installed as the modern **[CLI plugin](https://docs.docker.com/compose/install/linux/)** (`docker compose`, not the legacy standalone `docker-compose` binary), dropped into `~/.docker/cli-plugins/`. The remote CPU architecture is detected at runtime with `uname -m` and interpolated into the GitHub release download URL, so the same task works whether the EC2 instance type is x86_64 or ARM-based.
+
+**Play 5 — Deploy the application stack**
+
+```yaml
+- name: Start docker containers
+  hosts: all
+  become: yes
+  become_user: appuser
   vars_files:
     - project-vars
   tasks:
-    - name: Check nexus folder stats
-      stat:
-        path: /opt/nexus
-      register: stat_result
-    - name: Download Nexus
-      get_url:
-        url: "{{nexus_download_url}}"
-        dest: /opt/
-      register: download_result
-    - name: Untar Nexus installer
-      unarchive:
-        src: "{{download_result.dest}}"
-        dest: /opt/
-        remote_src: yes
-      when: not stat_result.stat.exists
-    - name: Find nexus folder
-      find: 
-        paths: /opt
-        pattern: "nexus-*"
-        file_type: directory
-      register: find_result
-    - name: Rename nexus folder
-      shell: mv {{find_result.files[0].path}} /opt/nexus
-      when: not stat_result.stat.exists
+    - name: Copy docker compose 
+      copy:
+        src: ../bootcamp-java-mysql-project/docker-compose-full.yaml
+        dest: /home/appuser/docker-compose.yaml
+    - name: Docker login
+      docker_login:
+        username: mustafa199b
+        password: "{{docker_password}}"
+    - name: Start containers from compose
+      community.docker.docker_compose_v2:
+        project_src: /home/appuser
 ```
 
-- `stat` checks whether `/opt/nexus` already exists **before** doing any work
-- `get_url` + `unarchive` (with `remote_src: yes`) download the archive straight on the remote host and extract it in place, avoiding an unnecessary round-trip through the control node
-- `find` locates the freshly extracted, version-numbered folder (e.g. `nexus-3.65.0-02`) so it can be renamed to a stable, version-agnostic path
-- Both the extraction and the rename are guarded by `when: not stat_result.stat.exists`, so **re-running the playbook is a no-op** once Nexus is already installed — a direct example of Ansible idempotency
+- `vars_files: - project-vars` — the Docker Hub password is externalized into a **git-ignored** vars file instead of being hardcoded in the playbook, keeping credentials out of version control (for production use, this value would ideally be encrypted with **Ansible Vault** rather than kept as plaintext)
+- `copy` ships the [bootcamp-java-mysql-project/docker-compose-full.yaml](bootcamp-java-mysql-project/docker-compose-full.yaml) stack definition straight from the control node to the new user's home directory
+- `docker_login` authenticates against Docker Hub so the private application image can be pulled
+- `community.docker.docker_compose_v2` is the Ansible Collection module that wraps the modern `docker compose` CLI plugin, bringing the whole stack up declaratively
 
-**Play 3 — Create a dedicated Linux user to own Nexus**
+The application stack itself, [docker-compose-full.yaml](bootcamp-java-mysql-project/docker-compose-full.yaml), defines three services:
 
 ```yaml
-- name: Create nexus user to own nexus folder
-  hosts: nexus_server
-  tasks:
-    - name: Ensure group nexus exists
-      group:
-        name: nexus
-        state: present
-    - name: Create nexus user 
-      user:
-        name: nexus
-        group: nexus
-    - name: Make nexus user owner of nexus folder
-      file:
-        path: /opt/nexus
-        state: directory
-        owner: nexus
-        group: nexus
-        recurse: yes
-    - name: Make nexus user owner of sonatype-work folder
-      file:
-        path: /opt/sonatype-work
-        state: directory
-        owner: nexus
-        group: nexus
-        recurse: yes
+version: '3'
+services:
+  java-app:
+    image: mustafa199b/demo:java-maven-2.0
+    environment:
+      - DB_USER=user
+      - DB_PWD=pass
+      - DB_SERVER=mysql
+      - DB_NAME=my-app-db
+    ports:
+    - 8080:8080
+    container_name: my-java-app
+  mysql:
+    image: mysql
+    ports:
+      - 3306:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=my-secret-pw
+      - MYSQL_DATABASE=my-app-db
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=pass
+    volumes:
+    - mysql-data:/var/lib/mysql
+    container_name: mysql
+  phpmyadmin:
+    image: phpmyadmin
+    environment:
+      - PMA_HOST=mysql
+    ports:
+      - 8083:80
+    container_name: myadmin
+volumes:
+  mysql-data:
+    driver: local
 ```
 
-Running Nexus under its own non-root user (`nexus`) rather than `root` follows the **principle of least privilege**, reducing the blast radius should the service ever be compromised. Both the binary directory (`/opt/nexus`) and the data/runtime directory (`/opt/sonatype-work`) are `chown`-ed recursively to that user.
+- **`java-app`** — a pre-built Java/Maven application image, connecting to MySQL using environment variables
+- **`mysql`** — the backing relational database, persisting its data to a named Docker **volume** (`mysql-data`) so data survives container restarts
+- **`phpmyadmin`** — a web UI for inspecting/administering the MySQL database, pointed at the `mysql` service by name (Docker Compose's built-in service discovery)
 
-**Play 4 — Start Nexus as the `nexus` user**
+### 4. Integrate Ansible into Terraform with a provisioner
 
-```yaml
-- name: Start nexus with nexus user
-  hosts: nexus_server
-  become: True
-  become_user: nexus
-  tasks:
-    # From Version 3.80.0 onwards: Sonatype officially stopped providing the nexus.rc file in the distribution package
-    - name: Find nexus config file nexus.rc
-      find: 
-        paths: /opt/nexus/bin/
-        pattern: "nexus.rc"
-        file_type: file
-      register: find_result
-    - name: Create nexus config if missing
-      file:
-        path: /opt/nexus/bin/nexus.rc
-        state: touch
-      when: find_result.matched == 0
-    - name: Set run_as_user nexus
-      lineinfile: 
-        path: /opt/nexus/bin/nexus.rc
-        regexp: '^#run_as_user=""'
-        line: run_as_user="nexus"
-    - name: Start nexus
-      command: /opt/nexus/bin/nexus start
+With the playbook proven to work standalone, the final step was wiring it into Terraform so it runs **automatically** right after the EC2 instance is created — no manual inventory editing, no manually re-running `ansible-playbook`:
+
+```hcl
+resource "null_resource" "configure_server" {
+  triggers = {
+    trigger = aws_instance.myapp-server.public_ip
+  }
+
+  provisioner "local-exec" {
+    working_dir = "../ansible"
+    command = "ansible-playbook --inventory ${aws_instance.myapp-server.public_ip}, --private-key ${var.private_key_location} --user ec2-user deploy-docker-new-user.yaml"
+  }
+}
 ```
 
-- `become: True` + `become_user: nexus` — every task in this play is privilege-escalated then executed **as `nexus`**, instead of the SSH login user (`root`)
-- The `find` + conditional `file: state=touch` pair defensively re-creates `nexus.rc` if it's missing, since newer Nexus releases (3.80.0+) no longer ship this file by default
-- `lineinfile` idempotently sets `run_as_user="nexus"` inside `nexus.rc` so the Nexus startup script always runs as the correct, unprivileged user
-- `command` starts the Nexus service using its own bundled start script
+- **`null_resource`** is a Terraform resource with no real infrastructure behind it — it exists purely to attach the provisioner logic to Terraform's dependency graph
+- **`triggers`** ties this resource to the EC2 instance's public IP: if the IP ever changes (e.g. the instance is replaced), Terraform knows to re-run the provisioner
+- **`local-exec`** runs the given command **on the machine running Terraform** (the control node), not on the remote instance — which is exactly where `ansible-playbook` needs to run from
+- The `--inventory ${aws_instance.myapp-server.public_ip},` flag builds a **one-off, dynamic inventory** on the fly (the trailing comma tells Ansible to treat the value as a host list rather than a file path), removing any need to hand-maintain a static `hosts` file for this automated flow
+- `--private-key` and `--user ec2-user` supply the SSH credentials Ansible needs to connect to the freshly created instance
 
-**Play 5 — Verify Nexus is running**
+> 📌 The static [ansible/hosts](ansible/hosts) inventory file is still kept in the repo for **manual/ad-hoc** runs and troubleshooting directly against a known host, independent of the Terraform-driven flow.
 
-```yaml
-- name: Verify nexus running
-  hosts: nexus_server
-  tasks:
-    - name: Check with ps
-      shell: ps aux | grep nexus
-      register: app_status
-    - debug: msg={{app_status.stdout_lines}}
-    - name: Wait one minute
-      pause:
-        minutes: 1 
-    - name: Check with netstat
-      shell: netstat -plnt
-      register: app_status
-    - debug: msg={{app_status.stdout_lines}}
-```
+### 5. Apply & watch the full pipeline run end-to-end
 
-- `shell` + `register` + `debug` — captures the output of `ps aux | grep nexus` into a variable and prints it to the console, confirming the Java process for Nexus is alive
-- `pause: minutes: 1` — Nexus takes roughly a minute to fully bootstrap and bind its listening port, so the playbook waits before checking again
-- A second `shell` + `netstat -plnt` check confirms the process is actually **listening** on its port, not just running as an OS process
-
-### 8. Run the Playbook
-
-With the inventory, configuration, vars file and playbook in place, the full deployment is triggered with a single command:
+With everything wired together, a single command provisions the AWS infrastructure **and** configures the application on top of it:
 
 ```bash
-ansible-playbook -i hosts deploy-nexus.yaml
+cd terraform
+terraform apply -var-file=terraform.tfvars
 ```
 
-Ansible executes each play in order — gathering facts, installing Java/net-tools, downloading and unpacking Nexus, creating the `nexus` user, starting the service and verifying it — reporting `ok` / `changed` / `skipping` per task along the way:
+Terraform first creates the VPC/networking/EC2 resources, then immediately triggers the `null_resource.configure_server` provisioner, which shells out to `ansible-playbook` and streams the playbook's own output straight into the Terraform apply log:
 
-![Ansible Nexus playbook run output](images/nexus-playbook-terminal.png)
+![Terraform apply running the Ansible playbook via local-exec](images/terraform-apply-terminal.png)
 
-### 9. Verify the deployment
+The `PLAY RECAP` (`ok=14 changed=9 ... failed=0`) confirms every Ansible task succeeded, followed by Terraform's own `Apply complete!` summary and the `ec2-public_ip` / `aws-ami_id` outputs.
 
-The final play in the playbook itself performs the verification, printing the running Java process (the Nexus JAR) via `ps aux | grep nexus`, pausing for Nexus to finish starting up, and then confirming the port is listening via `netstat -plnt`:
+### 6. Verify the deployment
 
-![Ansible Nexus playbook verification output](images/nexus-playbook-verify-terminal.png)
+SSH-ing into the newly provisioned EC2 instance confirms the compose file was copied correctly and all three containers are up and healthy:
 
-The `PLAY RECAP` at the end (`ok=23 changed=3 skipped=3 failed=0`) confirms every play succeeded, with the `skipped` tasks being the download/rename steps correctly bypassed because Nexus was already installed from a previous run — demonstrating idempotency in action. With the process confirmed running, Nexus Repository Manager is reachable from a browser at `http://64.227.181.206:8081`.
+```bash
+ssh ec2-user@<ec2-public-ip>
+sudo ls /home/appuser/
+sudo docker ps
+```
+
+![Docker containers running on the EC2 instance](images/ec2-server-docker-running-terminal.png)
+
+`docker ps` shows `my-java-app`, `myadmin` and `mysql` all `Up`, bound to ports `8080`, `8083` and `3306` respectively — confirming the application is reachable from a browser at `http://<ec2-public-ip>:8080` (and phpMyAdmin at `:8083`).
 
 ## ✅ Final result
 
 By the end of this demo:
 
-- 🖥️ A DigitalOcean Ubuntu droplet was provisioned and made reachable via SSH key authentication
-- ⚙️ Ansible was used to remotely install **Java 17** and `net-tools` with a single idempotent play
-- 👤 A dedicated, least-privilege Linux user and group (`nexus`) were created to own and run the service
-- 📦 The Nexus Repository installer was downloaded, unpacked and renamed to a stable path (`/opt/nexus`) using conditional, idempotent tasks
-- 🚀 Nexus was configured to run as the `nexus` user and started via its bundled startup script
-- 🔍 The deployment was verified end-to-end with `ps aux` and `netstat`, confirming both the running process and the listening port
-- 🔁 The entire process is **repeatable and idempotent** — the same playbook can be re-run against this or any new droplet to reproduce the exact same environment in minutes, safely skipping steps that are already satisfied, with zero manual SSH steps
+- 🖥️ A complete AWS network (VPC, subnet, internet gateway, route table, security group) and an EC2 instance were provisioned entirely through **Terraform**, with the AMI resolved dynamically rather than hardcoded
+- 🔗 Terraform's `null_resource` + `local-exec` **provisioner** was configured to automatically invoke `ansible-playbook` the moment the instance's public IP became available, passing it in as a one-off dynamic inventory
+- ⚙️ **Ansible** installed Docker and the modern Docker Compose CLI plugin on the instance, waiting safely for SSH to come up first
+- 👤 A dedicated, least-privilege Linux user (`appuser`) was created and added to the `docker` group to own and run the application containers
+- 🔐 Docker Hub credentials were externalized into a git-ignored `project-vars` file rather than hardcoded, and used to authenticate via the `docker_login` module
+- 📦 A three-service application stack (Java app + MySQL + phpMyAdmin) was shipped and started with `community.docker.docker_compose_v2`, and verified running with `docker ps`
+- 🔁 The entire pipeline — from `terraform apply` to a fully running, multi-container application — is **repeatable and idempotent**, turning infrastructure provisioning and application configuration into a single, unified command
 
-This project demonstrates a practical, end-to-end **Configuration Management** and **Application Deployment** workflow using Ansible — from provisioning through to a verified, running Nexus Repository Manager instance — the same pattern used to manage real production artifact repositories at scale.
+This project demonstrates a practical, production-style pattern for combining **Infrastructure as Code** and **Configuration Management**: Terraform owns the infrastructure lifecycle, Ansible owns the software configuration, and a Terraform provisioner bridges the two into one seamless, automated deployment pipeline.
 
 ## 📚 References
 
+- [Terraform Documentation](https://developer.hashicorp.com/terraform/docs)
+- [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
+- [Terraform `null_resource`](https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource)
+- [Terraform `local-exec` Provisioner](https://developer.hashicorp.com/terraform/language/resources/provisioners/local-exec)
+- [Terraform Variable Definitions (`.tfvars` files)](https://developer.hashicorp.com/terraform/language/values/variables#variable-definitions-tfvars-files)
 - [Ansible Documentation](https://docs.ansible.com/)
-- [Ansible Getting Started Guide](https://docs.ansible.com/ansible/latest/getting_started/index.html)
 - [Ansible Modules Index](https://docs.ansible.com/projects/ansible/latest/collections/index_module.html)
-- [Ansible Collections](https://docs.ansible.com/ansible/latest/collections/index.html)
-- [Ansible Galaxy](https://galaxy.ansible.com/)
-- [Ansible `get_url` module](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/get_url_module.html)
-- [Ansible `unarchive` module](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/unarchive_module.html)
-- [Ansible `find` module](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/find_module.html)
-- [Ansible `lineinfile` module](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/lineinfile_module.html)
+- [Ansible `wait_for` module](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/wait_for_module.html)
+- [Ansible `yum` module](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/yum_module.html)
 - [Ansible `user` module](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/user_module.html)
-- [Ansible `become` (Privilege Escalation)](https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_privilege_escalation.html)
-- [Ansible Conditionals (`when`)](https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_conditionals.html)
-- [Ansible Variables & `vars_files`](https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_variables.html)
-- [DigitalOcean Droplets Documentation](https://docs.digitalocean.com/products/droplets/)
-- [Sonatype Nexus Repository Documentation](https://help.sonatype.com/en/sonatype-nexus-repository.html)
-- [Sonatype Nexus Repository System Requirements](https://help.sonatype.com/en/system-requirements.html)
-- [OpenJDK Documentation](https://openjdk.org/)
+- [Ansible `docker_login` module](https://docs.ansible.com/ansible/latest/collections/community/docker/docker_login_module.html)
+- [Ansible `community.docker.docker_compose_v2` module](https://docs.ansible.com/ansible/latest/collections/community/docker/docker_compose_v2_module.html)
+- [Ansible Vault](https://docs.ansible.com/ansible/latest/vault_guide/index.html)
+- [Docker Compose CLI Plugin Installation](https://docs.docker.com/compose/install/linux/)
+- [AWS EC2 Documentation](https://docs.aws.amazon.com/ec2/)
+- [Amazon Linux 2023](https://docs.aws.amazon.com/linux/al2023/ug/what-is-amazon-linux.html)
